@@ -6,19 +6,19 @@
 #include "BTFL_430.h"
 #include "VL53L0X.h"
 
-namespace fHC{
+namespace fHC{	//常量
 	typedef uint8_t errCodeType;
 	typedef double heightType;
 }
 
-namespace fHErr{
+namespace fHErr{	//返回错误值
 	using fHC::errCodeType;
 	const errCodeType fH_OK  = 0x01;
 	const errCodeType fH_InitFAIL = 0x02;
 	const errCodeType fH_TimeOut = 0x03;
 }
 
-namespace fHVariable{
+namespace fHVariable{	//变量
 	using fHC::heightType;
 	
 	TaskHandle_t xHandle, fHcon_xHandle;
@@ -50,7 +50,7 @@ namespace fHVariable{
 	unsigned long deltaTime = 0;
 }
 
-namespace fHStruct{
+namespace fHStruct{	//结构体
 	using fHC::errCodeType;
 	using namespace fHErr;
 	struct fHReturnVal{
@@ -71,6 +71,7 @@ namespace fHNamespace{
 	
 	class fHModel{
 		public:
+			//初始化tof数据读取
 			fHReturnVal fHInit(uint8_t SDA, uint8_t SCL){
 				fHReturnVal RTN;
 				Wire.begin(SDA, SCL);
@@ -82,25 +83,30 @@ namespace fHNamespace{
 				sensor.startContinuous(1);
 				return RTN;
 			}
+			//获取当前tof读取的高度数据
 			heightType getHeight(){
 				return currentHeight;
 			}
+			//开始不断读取tof数据并保存在变量currentHeight中
 			fHReturnVal fHStartGetHeight(){
 				fHReturnVal RTN;
 				xTaskCreatePinnedToCore(getHeightLoop, "getHeightLoop", 4096, NULL, 1, &xHandle, 1);
 				return RTN;
 			}
+			// 开始使用位置式pid控制无人机飞行高度保持为taskHeightemp
 			fHReturnVal fHpidLoopControl(double taskHeightemp){
 				fHReturnVal RTN;
 				taskHeight = taskHeightemp;
 				xTaskCreatePinnedToCore(pidLoopControl, "pidLoopControl", 4096, NULL, 1, &fHcon_xHandle, 1);
 				return RTN;
 			}
+			// 停止pid控制
 			fHReturnVal fHpidLoopStop(){
 				fHReturnVal RTN;
 				vTaskDelete(fHcon_xHandle);
 				return RTN;
 			}
+			// 设置对应参数值，入参值为零则忽视
 			fHReturnVal setpidParemeter(double kpc, double kic, double kdc, double integralLimitc, double outputLimitc){
 				fHReturnVal RTN;
 				if(kpc != 0){
@@ -124,6 +130,7 @@ namespace fHNamespace{
 			
 			
 	};
+	// 连续读取三次tof数据求取平均值（减小误差）后再赋值给taskHeight
 	void getHeightLoop(void *arg){
 		while(1){
 			heightType count = 0;
@@ -148,6 +155,7 @@ namespace fHNamespace{
 			vTaskDelay(1);
 		}
 	}
+	//pid核心控制代码
 	void pidLoopControl(void *arg){
 		while(1){
 			currentTime = micros();
